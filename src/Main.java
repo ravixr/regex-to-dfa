@@ -10,7 +10,8 @@ class Main {
         System.out.println("Enter regex: ");
         userInput = System.console().readLine();
         FA dfa = FA.fromRegex(userInput);
-        dfa.SaveJFLAPXML("test.jff");
+	dfa.removeLambdaTransitions();
+	dfa.SaveJFLAPXML("test.jff");
     }
 }
 
@@ -134,9 +135,78 @@ class FA {
         return nfa;
     }
 
-    public FA toDFA() {
-        FA dfa = new FA();
-        return dfa;
+    public void removeLambdaTransitions() {
+	for (int i = 0; i < transitionList.size(); i++) {
+	    var q = transitionList.get(i);
+	    var dest = q.get("λ");
+	    if (dest == null) {
+		continue;
+	    }
+	    for (var j : dest) {
+		for (var key : transitionList.get(j).keySet()) {
+		    var newDest = q.get(key);
+		    if (newDest == null) {
+			newDest = new ArrayList<Integer>();
+			q.put(key, newDest);
+		    }
+		    for (var jDest : transitionList.get(j).get(key)) {
+			if (!newDest.contains(jDest)) {
+			    newDest.add(jDest);
+			}
+		    }
+		}
+		if (fStates.contains(j)) {
+		    fStates.add(i);
+		}
+	    }
+	    q.remove("λ");
+	}
+	removeUselessStates();
+    }
+
+    private void removeUselessStates() {
+        boolean[] visited = new boolean[transitionList.size()];
+        List<Integer> reachableStates = new ArrayList<>();
+	reachableStates.add(iState);
+        visited[iState] = true;
+        while (reachableStates.size() > 0) {
+            int state = reachableStates.get(0);
+            reachableStates.remove(0);
+            for (String key : transitionList.get(state).keySet()) {
+                var dest = transitionList.get(state).get(key);
+		for (var to : dest) {
+		    if (to != null && !visited[to]) {
+                        visited[to] = true;
+                        reachableStates.add(to);
+                    }
+		}
+            }
+        }
+        int useless = 0;
+        for (int i = 0; i < transitionList.size(); i++) {
+            if (!visited[i]) {
+                // Reshift the states and update the transitions
+                for (int j = 0; j < transitionList.size(); j++) {
+                    for (String symbol : transitionList.get(j).keySet()) {
+                        var dest = transitionList.get(j).get(symbol);
+			for (var to : dest) {
+			    to--;
+			}
+                    }	
+                }
+                useless++;
+            }
+        }
+        for (int i = 1; i <= useless; i++) {
+            transitionList.remove(transitionList.get(size() - i));
+	    if (fStates.contains(size() - i)) {
+		fStates.remove(size() - i);
+	    }
+        }
+    }
+    
+    public FA toDFA() throws Exception {
+	throw new Exception("Not implemented yet!");
     }
 
     private static final String WATERMARK = "<!-- Created by https://github.com/ravixr/ -->\n";
