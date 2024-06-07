@@ -8,7 +8,6 @@ public class RegexToDFA {
     static BufferedReader regexReader;
     static String regex;
     public static void main(String[] args) throws Exception {
-        //args = new String[] { "/root/ftc/2tp/tests/sen-test.txt", "/root/ftc/2tp/tests/reg-test.txt" };
         if (args.length < 2 || Arrays.asList(args).contains("--help")) {
             usage();
             return;
@@ -36,7 +35,7 @@ public class RegexToDFA {
     }
 
     public static void usage() {
-        System.out.println("Usage: java -jar regex-to-dfa.jar [options] <sentence-file> <regex-file>");
+        System.out.println("Usage: java  RegexToDfa.jar [options] <sentence-file> <regex-file>");
         System.out.println("Options:");
         System.out.println("\t--help\t\tPrint this message");
         System.out.println("Details:");

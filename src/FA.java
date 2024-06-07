@@ -2,7 +2,9 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 
@@ -12,6 +14,7 @@ public class FA {
     Integer iState; // Initial state
     List<Integer> fStates; // Final states
     boolean isDFA = false;
+    Set<String> symbolSet;
 
     public static final String LAMBDA = "λ";
 
@@ -20,6 +23,7 @@ public class FA {
         iState = 0;
         fStates = new ArrayList<Integer>();
         isDFA = false;
+        symbolSet = new HashSet<>();
     }
 
     public int size() {
@@ -35,8 +39,39 @@ public class FA {
         return null;
     }
 
+    public void addTransition(int from, String symbol, int to) {
+        var q = adj.get(from).get(symbol);
+        if (q == null) {
+            q = new ArrayList<Integer>();
+            adj.get(from).put(symbol, q);
+        }
+        if (!q.contains(to)) {
+            q.add(to);
+        }
+    }
+
+    public int addState(int from, String symbol) {
+        adj.add(new HashMap<String, List<Integer>>());
+        addTransition(from, symbol, size() - 1);
+        return size() - 1;
+    }
+
+    private static final String operators = "+*()";
+
+    private void getSymbols(String regex) {
+        for (int i = 0; i < regex.length(); i++) {
+            if (regex.charAt(i) == '\\') {
+                symbolSet.add(regex.substring(i, i + 2));
+                i++;
+            } else if (!operators.contains(regex.charAt(i) + "")) {
+                symbolSet.add(regex.substring(i, i + 1));
+            }
+        }
+    }
+    
     public static FA fromRegex(String regex) throws IllegalArgumentException {
         FA nfa = new FA();
+        nfa.getSymbols(regex);
         nfa.adj.add(new HashMap<String, List<Integer>>());
         List<Integer> destStates = new ArrayList<Integer>();
         nfa.adj.get(nfa.iState).put(regex, destStates);
@@ -46,19 +81,14 @@ public class FA {
         for (int i = 0; i < nfa.size(); i++) {
             HashMap<String, List<Integer>> q = nfa.adj.get(i);
             String s = getExpandableTransition(q);
-            List<Integer> qsDestStates = q.get(s);
             while (s != null) {
-                q.remove(s);
-                String currSymbol = "";
-                int j = 0;
-                //boolean unionFlag = false;
-                //while (j < s.length()) {
-                    // Parse the current symbol
+                int pos = -1;
+                char op = ' ';
+                for (int j = 0; j < s.length() - 1;) {
                     if (s.charAt(j) == '\\') {
-                        currSymbol = s.substring(j, j + 2);
                         j += 2;
                     } else if (s.charAt(j) == '(') {
-                        int begin = j, count = 1;
+                        int count = 1;
                         while (count != 0) {
                             j++;
                             if (s.charAt(j) == '(') {
@@ -67,148 +97,166 @@ public class FA {
                                 count--;
                             }
                         }
-                        currSymbol = s.substring(begin + 1, j);
                         j++;
                     } else {
-                        currSymbol = s.substring(j, j + 1);
                         j++;
                     }
-                    // Ensure j is within bounds
-                    if (j >= s.length()) {
-                        j = s.length() - 1;
+                    if (pos == -1 && j == s.length()) {
+                        var dest = q.get(s);
+                        q.remove(s);
+                        s = s.substring(1, s.length() - 1);
+                        for (var d : dest) {
+                            nfa.addTransition(i, s, d);
+                        }
+                        j = 0;
+                        continue;
                     }
-                    if (currSymbol != "" && s.charAt(j) == '*') {
-                        // Kleene star case:
-                        // (CurrState) -currSymbol-> (CurrState) -RestOfRegex-> (DestStates)
-                        List<Integer> dest = q.get(currSymbol);
-                        if (dest == null) {
-                            dest = new ArrayList<Integer>();
-                            q.put(currSymbol, dest);
+                    if (pos == -1 || calcPriority(s.charAt(j)) > calcPriority(op)) {
+                        pos = j;
+                        if (s.charAt(j) != '+' && s.charAt(j) != '*') {
+                            op = '.';
+                        } else {
+                            op = s.charAt(j);
                         }
-                        if (!dest.contains(i)) {
-                            dest.add(i);
-                        }
-                        currSymbol = "";
-                        j++;
-                        if (j < s.length()) {
-                            q.put(s.substring(j), qsDestStates);
-                        } else { 
-                            q.put(LAMBDA, qsDestStates);
-                        }
-                    } else if (currSymbol != "" && s.charAt(j) == '+') {
-                        // Union case:
-                        // (CurrState) -currSymbol-> (DestStates) / (CurrState) -RestOfRegex-> (DestStates)
-                        List<Integer> dest = q.get(currSymbol);
-                        if (dest == null) {
-                            dest = new ArrayList<Integer>();
-                            q.put(currSymbol, dest);
-                        }
-                        for (var to : qsDestStates) {
-                            if (!dest.contains(to)) {
-                                dest.add(to);
-                            }
-                        }
-                        currSymbol = "";
-                        j++;
-                        q.put(s.substring(j), qsDestStates);
-                    } else if (currSymbol != "" ) {
-                        // Concatenation case:
-                        // (CurrState) -currSymbol-> (NewState) -RestOfRegex-> (DestStates)
-                        nfa.adj.add(new HashMap<String, List<Integer>>());
-                        var newState = nfa.adj.get(nfa.size() - 1);
-                        if (j < s.length()) {
-                            newState.put(s.substring(j), qsDestStates);
-                        } else { 
-                            newState.put(LAMBDA, qsDestStates);
-                        }
-                        List<Integer> dest = q.get(currSymbol);
-                        if (dest == null) {
-                            dest = new ArrayList<Integer>();
-                            q.put(currSymbol, dest);
-                        }
-                        dest.add(nfa.size() - 1);
-                        currSymbol = "";
-                        j = s.length();
-                    } else {
-                        throw new IllegalArgumentException("Invalid regex");
                     }
-                //}
+                }
+                if (op == '+') {
+                    handleUnion(nfa, i, s, pos);
+                } else if (op == '*') {
+                    handleKleeneStar(nfa, i, s, pos);
+                } else if (op == '.') {
+                    handleConcatenation(nfa, i, s, pos);
+                } else {
+                    throw new IllegalArgumentException("Invalid regex");
+                }
                 s = getExpandableTransition(q);
-                qsDestStates = q.get(s);
             }
         }
         nfa.removeLambdaTransitions();
         return nfa;
     }
 
-    public void removeLambdaTransitions() {
-        for (int i = 0; i < adj.size(); i++) {
-            var q = adj.get(i);
-            var dest = q.get(LAMBDA);
-            if (dest == null) {
-                continue;
-            }
-            for (var j : dest) {
-                for (var key : adj.get(j).keySet()) {
-                    var newDest = q.get(key);
-                        if (newDest == null) {
-                            newDest = new ArrayList<Integer>();
-                            q.put(key, newDest);
-                        }
-                    for (var jDest : adj.get(j).get(key)) {
-                        if (!newDest.contains(jDest)) {
-                            newDest.add(jDest);
-                        }
-                    }
-                }
-                if (fStates.contains(j)) {
-                    fStates.add(i);
-                }
-            }
-            q.remove(LAMBDA);
+    private static int calcPriority(char symbol) {
+        switch (symbol) {
+            case '+':
+                return 2;
+            case '*':
+                return 0;
+            default:
+                return 1;
         }
-        removeUnreachableStates();
     }
 
-    private void removeUnreachableStates() {
-        boolean[] visited = new boolean[adj.size()];
-        List<Integer> reachableStates = new ArrayList<>();
-	    reachableStates.add(iState);
-        visited[iState] = true;
-        while (reachableStates.size() > 0) {
-            int state = reachableStates.get(0);
-            reachableStates.remove(0);
-            for (String key : adj.get(state).keySet()) {
-                var dest = adj.get(state).get(key);
-		        for (var to : dest) {
-                    if (to != null && !visited[to]) {
-                        visited[to] = true;
-                        reachableStates.add(to);
-                    }
-                }
+    // Union case:
+    // (currState)-λ->(q1)-leftExp-->(q2)-λ->(destStates)
+    //      |------λ->(q3)-rightExp->(q4)-λ----^
+    private static void handleUnion(FA nfa, int q, String s, int i) {
+        var destStates = nfa.adj.get(q).get(s);
+        nfa.adj.get(q).remove(s);
+        int q1 = nfa.addState(q, LAMBDA);
+        int q2 = nfa.addState(q, LAMBDA);
+        int q3 = nfa.addState(q1, s.substring(0, i));
+        int q4 = nfa.addState(q2, s.substring(i + 1));
+        for (int j = 0; j < destStates.size(); j++) {
+            nfa.addTransition(q3, LAMBDA, destStates.get(j));
+            nfa.addTransition(q4, LAMBDA, destStates.get(j));
+        }
+    }
+
+    // Kleene star case:
+    // (currState)-λ->(q1)-leftExp->(q2)-λ->(destStates)
+    //        ^ |--------------λ-------------^ |
+    //        |----------------λ---------------|
+    private static void handleKleeneStar(FA nfa, int q, String s, int i) {
+        var destStates = nfa.adj.get(q).get(s);
+        nfa.adj.get(q).remove(s);
+        int q1 = nfa.addState(q, LAMBDA);
+        int q2 = nfa.addState(q1, s.substring(0, i));
+        for (int j = 0; j < destStates.size(); j++) {
+            nfa.addTransition(q, LAMBDA, destStates.get(j));
+            nfa.addTransition(q2, LAMBDA, destStates.get(j));
+            nfa.addTransition(destStates.get(j), LAMBDA, q);
+        }
+    }
+
+    // Concatenation case:
+    // (currState)-λ->(q1)-leftExp->(q2)-λ->(q3)-rightExp->(q4)-λ->(destStates)
+    private static void handleConcatenation(FA nfa, int q, String s, int i) {
+        var destStates = nfa.adj.get(q).get(s);
+        nfa.adj.get(q).remove(s);
+        int q1 = nfa.addState(q, LAMBDA);
+        int q2 = nfa.addState(q1, s.substring(0, i));
+        int q3 = nfa.addState(q2, LAMBDA);
+        int q4 = nfa.addState(q3, s.substring(i));
+        for (int j = 0; j < destStates.size(); j++) {
+            nfa.addTransition(q4, LAMBDA, destStates.get(j));
+        }
+    }
+
+    private Set<Integer> lambdaClosure(int q, Map<Integer, Set<Integer>> closureMap, Map<Integer, Boolean> visited) {
+        visited.put(q, true);
+        Set<Integer> closure = new HashSet<>();
+        var dest = adj.get(q).get(LAMBDA) == null ? new ArrayList<Integer>() : adj.get(q).get(LAMBDA);
+        for (var to : dest) {
+            if (to < q && closureMap.get(to) != null) {
+                closure.addAll(closureMap.get(to));
+            } else if (visited.get(to) == null) {
+                var c = lambdaClosure(to, closureMap, visited);
+                closure.addAll(c);
             }
         }
-        int unreachable = 0;
+        for (var c : closure) {
+            // Check if has a final state in the closure
+            if (fStates.contains(c)) {
+                fStates.add(q);
+                break;
+            }
+        }
+        closure.addAll(dest);
+        closure.add(q);
+        closureMap.put(q, closure);
+        return closure;
+    }
+
+    public void removeLambdaTransitions() {
+        Map<Integer, Set<Integer>> closureMap = new HashMap<>();
+        Map<Integer, Boolean> visited = new HashMap<>();
         for (int i = 0; i < adj.size(); i++) {
-            if (!visited[i]) {
-                // Reshift the states and update the transitions
-                for (int j = 0; j < adj.size(); j++) {
-                    for (String symbol : adj.get(j).keySet()) {
-                        var dest = adj.get(j).get(symbol);
-                        for (int k = 0; k < dest.size(); k++) {
-                            if (dest.get(k) > i) {
-                                dest.set(k, dest.get(k) - 1);
+            var c = lambdaClosure(i, closureMap, visited);
+            closureMap.put(i, c);
+            adj.get(i).remove(LAMBDA);
+            visited.clear();
+        }
+        for (var s : symbolSet) {
+            for (int i = 0; i < adj.size(); i++) {
+                var lClosure = closureMap.get(i);
+                if (lClosure == null) {
+                    continue;
+                }
+                for (var to : lClosure) {
+                    if (to == i) {
+                        continue;
+                    }
+                    var c = adj.get(to).get(s);
+                    if (c == null) {
+                        continue;
+                    }
+                    for (var q : c) {
+                        addTransition(i, s, q);
+                        var lq = closureMap.get(q);
+                        if (lq == null) {
+                            continue;
+                        }
+                        boolean firstFinal = true;
+                        for (var l : lq) {
+                            if ((firstFinal && fStates.contains(l))
+                            || !(adj.get(l).keySet().contains(LAMBDA) && adj.get(l).keySet().size() == 1)) {
+                                addTransition(i, s, l);
+                                firstFinal = false;
                             }
                         }
-                    }	
+                    }
                 }
-                unreachable++;
-            }
-        }
-        for (int i = 1; i <= unreachable; i++) {
-            adj.remove(adj.get(size() - 1));
-            if (fStates.contains(size() - 1)) {
-                fStates.remove(size() - 1);
             }
         }
     }
@@ -220,6 +268,9 @@ public class FA {
         List<Integer> iStateSet = new ArrayList<>();
         iStateSet.add(iState);
         stateMap.put(iStateSet, dfa.size());
+        if (fStates.contains(iState)) {
+            dfa.fStates.add(dfa.size());
+        }
         dfa.adj.add(new HashMap<String, List<Integer>>());
         queue.add(iStateSet);
         while (queue.size() > 0) {
@@ -329,7 +380,11 @@ public class FA {
                     xml += "\t\t<transition>&#13;\n";
                     xml += "\t\t\t<from>" + i + "</from>&#13;\n";
                     xml += "\t\t\t<to>" + adj.get(i).get(symbol).get(j) + "</to>&#13;\n";
-                    xml += "\t\t\t<read>" + symbol + "</read>&#13;\n";
+                    if (symbol.equals(LAMBDA)) {
+                        xml += "\t\t\t<read/>\n";
+                    } else {
+                        xml += "\t\t\t<read>" + symbol + "</read>&#13;\n";
+                    }
                     xml += "\t\t</transition>&#13;\n";
                 }
             }
