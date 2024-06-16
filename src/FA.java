@@ -110,7 +110,9 @@ public class FA {
                         }
                         j = 0;
                         continue;
-                    }
+                    } else if (j >= s.length()) {
+			break;
+		    }
                     if (pos == -1 || calcPriority(s.charAt(j)) > calcPriority(op)) {
                         pos = j;
                         if (s.charAt(j) != '+' && s.charAt(j) != '*') {
@@ -132,7 +134,9 @@ public class FA {
                 s = getExpandableTransition(q);
             }
         }
+        // nfa.SaveJFLAPXML("nfa-λ.jff");
         nfa.removeLambdaTransitions();
+        // nfa.SaveJFLAPXML("nfa.jff");
         return nfa;
     }
 

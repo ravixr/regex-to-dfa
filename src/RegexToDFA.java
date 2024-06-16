@@ -35,13 +35,12 @@ public class RegexToDFA {
     }
 
     public static void usage() {
-        System.out.println("Usage: java  RegexToDfa.jar [options] <sentence-file> <regex-file>");
+        System.out.println("Usage: java -jar RegexToDfa.jar [options] <sentence-file> <regex-file>");
         System.out.println("Options:");
         System.out.println("\t--help\t\tPrint this message");
         System.out.println("Details:");
         System.out.println("\t<sentence-file>\tFile containing the sentences to be tested (one per line)");
         System.out.println("\t<regex-file>\tFile containing the regex to be converted to DFA (one line)");
-        // Specify the format of the regex
         System.out.println("Regex format:");
         System.out.println("\t- Use '" + FA.LAMBDA + "' for lambda transitions ('blank' character input transitions)");
         System.out.println("\t- Use '()' for grouping (e.g. '(a+b)*' to group 'a+b'");
@@ -50,14 +49,21 @@ public class RegexToDFA {
         System.out.println("\t- Use '\\' followed by an operator character to use it as a literal (e.g. '\\" + FA.LAMBDA + "' to use '\" + FA.LAMBDA + \"' as a literal)");
     }
 
+    public static String ANSI_RESET = "\u001B[0m";
+    public static String ANSI_RED = "\u001B[31m";
+    public static String ANSI_GREEN = "\u001B[32m";
+    
     public static void testDFA(FA dfa) throws Exception {
+	if (System.getProperty("os.name").toLowerCase().contains("win")) {
+	    ANSI_RESET = ANSI_RED = ANSI_GREEN = "";
+	}
         System.out.println("Testing DFA from regex: " + regex);
         while (sentenceReader.ready()) {
             String sentence = sentenceReader.readLine();
             if (dfa.runDFA(sentence)) {
-                System.out.println("[ACCEPTED]: " + sentence);
+                System.out.println(ANSI_GREEN + "[ACCEPTED]" + ANSI_RESET + ": " + sentence);
             } else {
-                System.out.println("[REJECTED]: " + sentence);
+                System.out.println(ANSI_RED + "[REJECTED]" + ANSI_RESET + ": " + sentence);
             }
         }
     }

@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Created by https://github.com/ravixr/regex-to-dfa -->
 <structure>&#13;
 	<type>fa</type>&#13;
 	<automaton>&#13;
@@ -7,12 +6,10 @@
 			<x>0</x>&#13;
 			<y>0</y>&#13;
 			<initial/>&#13;
-			<final/>&#13;
 		</state>&#13;
 		<state id="1" name="q1">&#13;
 			<x>0</x>&#13;
 			<y>0</y>&#13;
-			<final/>&#13;
 		</state>&#13;
 		<state id="2" name="q2">&#13;
 			<x>0</x>&#13;
@@ -22,10 +19,6 @@
 		<state id="3" name="q3">&#13;
 			<x>0</x>&#13;
 			<y>0</y>&#13;
-		</state>&#13;
-		<state id="4" name="q4">&#13;
-			<x>0</x>&#13;
-			<y>0</y>&#13;
 			<final/>&#13;
 		</state>&#13;
 		<transition>&#13;
@@ -36,47 +29,12 @@
 		<transition>&#13;
 			<from>0</from>&#13;
 			<to>2</to>&#13;
-			<read>b</read>&#13;
-		</transition>&#13;
-		<transition>&#13;
-			<from>0</from>&#13;
-			<to>3</to>&#13;
 			<read>c</read>&#13;
 		</transition>&#13;
 		<transition>&#13;
-			<from>0</from>&#13;
-			<to>4</to>&#13;
-			<read>d</read>&#13;
-		</transition>&#13;
-		<transition>&#13;
 			<from>1</from>&#13;
-			<to>1</to>&#13;
-			<read>a</read>&#13;
-		</transition>&#13;
-		<transition>&#13;
-			<from>1</from>&#13;
-			<to>2</to>&#13;
-			<read>b</read>&#13;
-		</transition>&#13;
-		<transition>&#13;
-			<from>2</from>&#13;
-			<to>1</to>&#13;
-			<read>a</read>&#13;
-		</transition>&#13;
-		<transition>&#13;
-			<from>2</from>&#13;
-			<to>2</to>&#13;
-			<read>b</read>&#13;
-		</transition>&#13;
-		<transition>&#13;
-			<from>3</from>&#13;
 			<to>3</to>&#13;
-			<read>c</read>&#13;
-		</transition>&#13;
-		<transition>&#13;
-			<from>3</from>&#13;
-			<to>4</to>&#13;
-			<read>d</read>&#13;
+			<read>b</read>&#13;
 		</transition>&#13;
 	</automaton>&#13;
 </structure>
